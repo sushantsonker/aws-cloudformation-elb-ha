@@ -4,12 +4,8 @@
     "KeyName": {
       "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instances",
       "Type": "AWS::EC2::KeyPair::KeyName",
-      "ConstraintDescription": "must be the name of an existing EC2 KeyPair."
-    },
-    "ImageId": {
-      "Description": "ImageId",
-      "Type": "String",
-      "Default": "ami-0c6b1d09930fac512"
+      "ConstraintDescription": "must be the name of an existing EC2 KeyPair.",
+      "Default": "sushantawseastkeypair"
     },
     "SubnetId": {
       "Description": "SubnetId",
@@ -25,26 +21,6 @@
       "Description": "SubnetId",
       "Type": "String",
       "Default": "subnet-53ab697d"
-    },
-    "InstanceType": {
-      "Description": "WebServer EC2 instance type",
-      "Type": "String",
-      "Default": "t2.micro",
-      "AllowedValues": [
-        "t1.micro",
-        "t2.nano",
-        "t2.micro",
-        "t2.small",
-        "t2.medium",
-        "t2.large",
-        "m3.medium",
-        "m3.large",
-        "m3.xlarge",
-        "m1.small",
-        "m1.medium",
-        "m1.xlarge"
-      ],
-      "ConstraintDescription": "must be a valid EC2 instance type. t1 and t2 instance is not available in other Region."
     },
     "SSHLocation": {
       "Description": "The IP address range that can be used to SSH to the EC2 instances",
@@ -100,7 +76,7 @@
       "Type": "AWS::AutoScaling::AutoScalingGroup",
       "CreationPolicy": {
         "ResourceSignal": {
-          "Timeout": "PT15M"
+          "Timeout": "PT2M"
         }
       },
       "UpdatePolicy": {
@@ -123,9 +99,9 @@
         "LaunchConfigurationName": {
           "Ref": "LaunchConfig"
         },
-        "MinSize": "2",
-        "MaxSize": "3",
-        "DesiredCapacity": "2",
+        "MinSize": "1",
+        "MaxSize": "1",
+        "DesiredCapacity": "1",
         "LoadBalancerNames": [
           {
             "Ref": "ElasticLoadBalancer"
@@ -220,41 +196,17 @@
         }
       },
       "Properties": {
-        "IamInstanceProfile": [
-          {
-            "Ref": "WebServerInstanceProfile"
-          }
-        ],
-        "ImageId": [
-          {
-            "Ref": "ImageId"
-          }
-        ],
-        "KeyName": [
-          {
-            "Ref": "KeyName"
-          }
-        ],
-        "SecurityGroups": [
-          {
-            "Ref": "PrivateSecurityGroup"
-          }
-        ],
-        "InstanceType": [
-          {
-            "Ref": "InstanceType"
-          }
-        ]
+        "ImageId": "ami-0c6b1d09930fac512",
+        "KeyName": "sushantawseastkeypair",
+        "InstanceType": "t2.micro",
+        "IamInstanceProfile": {
+          "Ref": "WebServerInstanceProfile"
+        }
       }
     },
     "ElasticLoadBalancer": {
       "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
       "Properties": {
-        "SecurityGroups": [
-          {
-            "Ref": "InternetSecurityGroup"
-          }
-        ],
         "Subnets": [
           "subnet-0671b05a",
           "subnet-53ab697d"
@@ -272,7 +224,7 @@
           "HealthyThreshold": "3",
           "UnhealthyThreshold": "5",
           "Interval": "30",
-          "Timeout": "5"
+          "Timeout": "2"
         }
       }
     },
@@ -336,35 +288,13 @@
           "ec2-s3"
         ]
       }
-    },
-    "Bastion": {
-      "Type": "AWS::EC2::Instance",
-      "Properties": {
-        "KeyName": [
-          {
-            "Ref": "KeyName"
-          }
-        ],
-        "ImageId": [
-          {
-            "Ref": "ImageId"
-          }
-        ],
-        "SecurityGroupIds": [
-          {
-            "Ref": "InternetSecurityGroup"
-          }
-        ],
-        "InstanceType": [
-          {
-            "Ref": "InstanceType"
-          }
-        ],
-        "SubnetId": [
-          {
-            "Ref": "SubnetId"
-          }
-        ]
+    }
+  },
+  "Outputs": {
+    "WebServerInstanceProfile": {
+      "Description": "Web Instance Profile",
+      "Value": {
+        "Ref": "WebServerInstanceProfile"
       }
     }
   }

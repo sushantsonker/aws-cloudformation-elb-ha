@@ -1,5 +1,5 @@
 {
-  "Description": "This template deploys Autoscaling group that will spin 2 instance with the max instance of 3 and dependent on load balancer to manage the load for the instance.",
+  "Description": "This template creates a single security group resource.",
   "Parameters": {},
   "Resources": {
     "InternetSecurityGroup": {
