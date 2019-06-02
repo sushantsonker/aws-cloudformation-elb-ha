@@ -1,0 +1,371 @@
+{
+  "Description": "This template deploys Autoscaling group that will spin 2 instance with the max instance of 3 and dependent on load balancer to manage the load for the instance.",
+  "Parameters": {
+    "KeyName": {
+      "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "ConstraintDescription": "must be the name of an existing EC2 KeyPair."
+    },
+    "ImageId": {
+      "Description": "ImageId",
+      "Type": "String",
+      "Default": "ami-0c6b1d09930fac512"
+    },
+    "SubnetId": {
+      "Description": "SubnetId",
+      "Type": "String",
+      "Default": "subnet-0671b05a"
+    },
+    "PublicSubnet1": {
+      "Description": "SubnetId",
+      "Type": "String",
+      "Default": "subnet-0671b05a"
+    },
+    "PublicSubnet2": {
+      "Description": "SubnetId",
+      "Type": "String",
+      "Default": "subnet-53ab697d"
+    },
+    "InstanceType": {
+      "Description": "WebServer EC2 instance type",
+      "Type": "String",
+      "Default": "t2.micro",
+      "AllowedValues": [
+        "t1.micro",
+        "t2.nano",
+        "t2.micro",
+        "t2.small",
+        "t2.medium",
+        "t2.large",
+        "m3.medium",
+        "m3.large",
+        "m3.xlarge",
+        "m1.small",
+        "m1.medium",
+        "m1.xlarge"
+      ],
+      "ConstraintDescription": "must be a valid EC2 instance type. t1 and t2 instance is not available in other Region."
+    },
+    "SSHLocation": {
+      "Description": "The IP address range that can be used to SSH to the EC2 instances",
+      "Type": "String",
+      "MinLength": "9",
+      "MaxLength": "18",
+      "Default": "0.0.0.0/0",
+      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
+    },
+    "EnvironmentName": {
+      "Description": "An environment name that will be prefixed to resource names",
+      "Type": "String"
+    },
+    "VpcCIDR": {
+      "Description": "Please enter the IP range (CIDR notation) for this VPC",
+      "Type": "String",
+      "Default": "172.16.16.0/20"
+    },
+    "PublicSubnet1CIDR": {
+      "Description": "Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone",
+      "Type": "String",
+      "Default": "172.16.17.0/24"
+    },
+    "PublicSubnet2CIDR": {
+      "Description": "Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone",
+      "Type": "String",
+      "Default": "172.16.18.0/24"
+    },
+    "PrivateSubnet1CIDR": {
+      "Description": "Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone",
+      "Type": "String",
+      "Default": "172.16.21.0/24"
+    },
+    "PrivateSubnet2CIDR": {
+      "Description": "Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone",
+      "Type": "String",
+      "Default": "172.16.22.0/24"
+    },
+    "LogGroupName": {
+      "Description": "Apache Log Group",
+      "Type": "String",
+      "Default": "apache-webtest"
+    },
+    "VpcId": {
+      "Description": "VpcId",
+      "Type": "String",
+      "Default": "vpc-d6340ead"
+    }
+  },
+  "Resources": {
+    "WebServerGroup": {
+      "Type": "AWS::AutoScaling::AutoScalingGroup",
+      "CreationPolicy": {
+        "ResourceSignal": {
+          "Timeout": "PT15M"
+        }
+      },
+      "UpdatePolicy": {
+        "AutoScalingRollingUpdate": {
+          "MaxBatchSize": "1",
+          "MinInstancesInService": "1",
+          "PauseTime": "PT15M",
+          "WaitOnResourceSignals": "true"
+        }
+      },
+      "Properties": {
+        "VPCZoneIdentifier": [
+          {
+            "Ref": "PublicSubnet1"
+          },
+          {
+            "Ref": "PublicSubnet2"
+          }
+        ],
+        "LaunchConfigurationName": {
+          "Ref": "LaunchConfig"
+        },
+        "MinSize": "2",
+        "MaxSize": "3",
+        "DesiredCapacity": "2",
+        "LoadBalancerNames": [
+          {
+            "Ref": "ElasticLoadBalancer"
+          }
+        ]
+      }
+    },
+    "LaunchConfig": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "configSets": {
+            "default": [
+              "setup"
+            ]
+          },
+          "setup": {
+            "packages": {
+              "yum": {
+                "mysql": [],
+                "mysql-server": [],
+                "mysql-libs": [],
+                "httpd": []
+              }
+            },
+            "files": {
+              "/etc/awslogs/awscli.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[default]\n",
+                      "region = us-east-1\n",
+                      "output = text\n"
+                    ]
+                  ]
+                }
+              },
+              "/etc/cfn/cfn-hup.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[main]\n",
+                      "stack=",
+                      {
+                        "Ref": "AWS::StackName"
+                      },
+                      "\n",
+                      "region=",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      "\n",
+                      "interval=1"
+                    ]
+                  ]
+                }
+              },
+              "/etc/awslogs/awslogs.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "datetime_format = %b %d %H:%M:%S\n",
+                      "file = /var/log/messages\n",
+                      "log_stream_name = {instance_id}\n",
+                      "initial_position = start_of_file\n",
+                      "log_group_name = AMZ-2\n",
+                      "buffer_duration = 5000"
+                    ]
+                  ]
+                }
+              },
+              "/var/www/html/index.html": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "<html>\n",
+                      "  <head>\n",
+                      "    <title>AWS CloudFormation apache sample</title>\n",
+                      "    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=ISO-8859-1\">\n",
+                      "  </head>\n",
+                      "  <body>\n"
+                    ]
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "Properties": {
+        "IamInstanceProfile": [
+          {
+            "Ref": "WebServerInstanceProfile"
+          }
+        ],
+        "ImageId": [
+          {
+            "Ref": "ImageId"
+          }
+        ],
+        "KeyName": [
+          {
+            "Ref": "KeyName"
+          }
+        ],
+        "SecurityGroups": [
+          {
+            "Ref": "PrivateSecurityGroup"
+          }
+        ],
+        "InstanceType": [
+          {
+            "Ref": "InstanceType"
+          }
+        ]
+      }
+    },
+    "ElasticLoadBalancer": {
+      "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties": {
+        "SecurityGroups": [
+          {
+            "Ref": "InternetSecurityGroup"
+          }
+        ],
+        "Subnets": [
+          "subnet-0671b05a",
+          "subnet-53ab697d"
+        ],
+        "CrossZone": "true",
+        "Listeners": [
+          {
+            "LoadBalancerPort": "8080",
+            "InstancePort": "8080",
+            "Protocol": "HTTP"
+          }
+        ],
+        "HealthCheck": {
+          "Target": "HTTP:8080/",
+          "HealthyThreshold": "3",
+          "UnhealthyThreshold": "5",
+          "Interval": "30",
+          "Timeout": "5"
+        }
+      }
+    },
+    "PrivateSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Security Group for Private Instance",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "8080",
+            "ToPort": "8080",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+    "InternetSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Enable SSH access and HTTP access on the configured port",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "8080",
+            "ToPort": "8080",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+    "WebServerInstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [
+          "ec2-s3"
+        ]
+      }
+    },
+    "Bastion": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "KeyName": [
+          {
+            "Ref": "KeyName"
+          }
+        ],
+        "ImageId": [
+          {
+            "Ref": "ImageId"
+          }
+        ],
+        "SecurityGroupIds": [
+          {
+            "Ref": "InternetSecurityGroup"
+          }
+        ],
+        "InstanceType": [
+          {
+            "Ref": "InstanceType"
+          }
+        ],
+        "SubnetId": [
+          {
+            "Ref": "SubnetId"
+          }
+        ]
+      }
+    }
+  }
+}
