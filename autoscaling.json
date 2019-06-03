@@ -76,7 +76,7 @@
       "Type": "AWS::AutoScaling::AutoScalingGroup",
       "CreationPolicy": {
         "ResourceSignal": {
-          "Timeout": "PT2M"
+          "Timeout": "PT5M"
         }
       },
       "UpdatePolicy": {
@@ -121,9 +121,6 @@
           "setup": {
             "packages": {
               "yum": {
-                "mysql": [],
-                "mysql-server": [],
-                "mysql-libs": [],
                 "httpd": []
               }
             },
@@ -189,7 +186,10 @@
                       "  <body>\n"
                     ]
                   ]
-                }
+                },
+                "mode": "000600",
+                "owner": "apache",
+                "group": "apache"
               }
             }
           }
@@ -201,6 +201,30 @@
         "InstanceType": "t2.micro",
         "IamInstanceProfile": {
           "Ref": "WebServerInstanceProfile"
+        },
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#!/bin/bash -xe\n",
+                "yum install -y aws-cfn-bootstrap\n",
+                "# Install the files and packages from the metadata\n",
+                "/opt/aws/bin/cfn-init -v ",
+                "         --stack ",
+                {
+                  "Ref": "AWS::StackName"
+                },
+                "         --resource WebServerInstance ",
+                "         --configsets Install ",
+                "         --region ",
+                {
+                  "Ref": "AWS::Region"
+                },
+                "\n"
+              ]
+            ]
+          }
         }
       }
     },
@@ -224,7 +248,7 @@
           "HealthyThreshold": "3",
           "UnhealthyThreshold": "5",
           "Interval": "30",
-          "Timeout": "2"
+          "Timeout": "5"
         }
       }
     },

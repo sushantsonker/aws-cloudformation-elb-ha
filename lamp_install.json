@@ -11,7 +11,7 @@
     "WebServerSecurityGroup": {
       "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instances",
       "Type": "String",
-      "Default": "sg-0abcd97260a4ec2dc"
+      "Default": "launch-wizard-3"
     },
     "InstanceType": {
       "Description": "Instance Type",
@@ -22,6 +22,44 @@
   "Resources": {
     "WebServerInstance": {
       "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "ImageId": "ami-0c6b1d09930fac512",
+        "InstanceType": {
+          "Ref": "InstanceType"
+        },
+        "SecurityGroups": [
+          {
+            "Ref": "WebServerSecurityGroup"
+          }
+        ],
+        "KeyName": {
+          "Ref": "KeyName"
+        },
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#!/bin/bash -xe\n",
+                "yum install -y aws-cfn-bootstrap\n",
+                "# Install the files and packages from the metadata\n",
+                "/opt/aws/bin/cfn-init -v ",
+                "         --stack ",
+                {
+                  "Ref": "AWS::StackName"
+                },
+                "         --resource WebServerInstance ",
+                "         --configsets Install ",
+                "         --region ",
+                {
+                  "Ref": "AWS::Region"
+                },
+                "\n"
+              ]
+            ]
+          }
+        }
+      },
       "Metadata": {
         "Comment1": "Configure the bootstrap helpers to install the Apache Web Server and PHP",
         "Comment2": "Save website content to /var/www/html/index.php",
@@ -34,9 +72,6 @@
           "Install": {
             "packages": {
               "yum": {
-                "mysql": [],
-                "mysql-server": [],
-                "mysql-libs": [],
                 "httpd": []
               }
             },
@@ -88,44 +123,6 @@
                   "ensureRunning": "true"
                 }
               }
-            }
-          }
-        },
-        "Properties": {
-          "ImageId": "ami-0c6b1d09930fac512",
-          "InstanceType": {
-            "Ref": "InstanceType"
-          },
-          "SecurityGroups": [
-            {
-              "Ref": "WebServerSecurityGroup"
-            }
-          ],
-          "KeyName": {
-            "Ref": "KeyName"
-          },
-          "UserData": {
-            "Fn::Base64": {
-              "Fn::Join": [
-                "",
-                [
-                  "#!/bin/bash -xe\n",
-                  "yum install -y aws-cfn-bootstrap\n",
-                  "# Install the files and packages from the metadata\n",
-                  "/opt/aws/bin/cfn-init -v ",
-                  "         --stack ",
-                  {
-                    "Ref": "AWS::StackName"
-                  },
-                  "         --resource WebServerInstance ",
-                  "         --configsets Install ",
-                  "         --region ",
-                  {
-                    "Ref": "AWS::Region"
-                  },
-                  "\n"
-                ]
-              ]
             }
           }
         }
